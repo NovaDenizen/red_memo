@@ -86,9 +86,16 @@ pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
 
 impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Debug for Memoizer<'a, K, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let memo_str = self.memo_predicate.as_ref().map(|_| "*present*").unwrap_or("*not present*");
-        write!(f, "Memoizer {{ cache: {:?}, user_function: *unprintable*, memo_predicate: {} }}",
-               self.cache, memo_str)
+        let memo_str = self
+            .memo_predicate
+            .as_ref()
+            .map(|_| "*present*")
+            .unwrap_or("*not present*");
+        write!(
+            f,
+            "Memoizer {{ cache: {:?}, user_function: *unprintable*, memo_predicate: {} }}",
+            self.cache, memo_str
+        )
     }
 }
 
