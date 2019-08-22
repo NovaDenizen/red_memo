@@ -12,11 +12,13 @@ enum MemoVaal<V> {
 }
 
 
-trait MemoStruct<K,V: Clone> {
+trait MemoStruct<K,V: Clone>: IntoIterator<Item=(K,V)>
+{
     fn new() -> Self;
     fn insert(&mut self, k: K, v: V) -> Result<(), V>;
     fn get(&self, k: &K) -> Option<V>;
     fn get_mut(&mut self, k: &K) -> Option<&mut V>;
+    fn iter<'a>(&'a self) -> Box<dyn 'a + Iterator<Item=(&'a K, &'a V)>>;
 }
 
 impl<K,V: Clone> MemoStruct<K,V> for BTreeMap<K,V>
@@ -46,6 +48,10 @@ where
     fn get_mut(&mut self, k: &K) -> Option<&mut V>
     {
         BTreeMap::get_mut(self, k)
+    }
+    fn iter<'a>(&'a self) -> Box<dyn 'a + Iterator<Item=(&'a K, &'a V)>>
+    {
+        Box::new(BTreeMap::iter(self))
     }
 }
 
