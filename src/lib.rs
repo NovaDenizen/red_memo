@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 
 #[derive(Eq, Ord, PartialOrd, PartialEq, Debug, Clone, Copy)]
-enum MemoVaal<V> {
+enum MemoVal<V> {
     InProgress,
     Value(V),
 }
@@ -79,11 +79,39 @@ where
 }
 
 pub struct Memoizer<'a, K: 'a, V: 'a + Clone> {
-    cache: Box<dyn MemoStruct<'a,K,V>>,
+    cache: Box<dyn 'a + MemoStruct<'a,K,MemoVal<V>>>,
     user_function: Rc<dyn Fn(&mut Memoizer<K, V>, &K) -> V>,
-    noisy: bool,
-    key_to_string: Option<Box<dyn Fn(&K) -> String>>,
-    value_to_string: Option<Box<dyn Fn(&V) -> String>>,
+    small_predicate: Option<Rc<dyn Fn(&K) -> bool>>,
+}
+
+impl<'a, K: 'a, V: 'a + Clone> Memoizer<'a, K, V> 
+{
+    pub fn new_hash<F>(user: F) -> Self 
+    where
+        K: Hash + Eq,
+        F: 'static + Fn(&mut Memoizer<K,V>, &K) -> V,
+    {
+        let cache = Box::new(HashMap::new());
+        let user_function = Rc::new(user);
+        let small_predicate = None;
+        Memoizer { cache, user_function, small_predicate }
+    }
+    pub fn new_ord<F>(user: F) -> Self 
+    where
+        K: Ord,
+        F: 'static + Fn(&mut Memoizer<K,V>, &K) -> V,
+    {
+        let cache = Box::new(BTreeMap::new());
+        let user_function = Rc::new(user);
+        let small_predicate = None;
+        Memoizer { cache, user_function, small_predicate }
+    }
+    pub fn set_small_predicate<F>(&mut self, small: F) 
+    where
+        F: 'static + Fn(&K) -> bool,
+    {
+        self.small_predicate = Some(Rc::new(small));
+    }
 }
 
 
