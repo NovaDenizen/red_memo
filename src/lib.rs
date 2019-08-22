@@ -19,7 +19,7 @@ enum MemoVal<V> {
     Finished(V),
 }
 
-trait MemoStruct<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> {
+trait MemoStruct<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug>: Debug {
     fn insert(&mut self, k: K, v: V) -> Result<(), V>;
     fn get(&self, k: &K) -> Option<V>;
     // TODO: remove get_mut?
@@ -82,6 +82,14 @@ pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
     cache: Box<dyn 'a + MemoStruct<'a, K, MemoVal<V>>>,
     user_function: Rc<dyn Fn(&mut Memoizer<K, V>, &K) -> V>,
     memo_predicate: Option<Box<dyn Fn(&K) -> bool>>,
+}
+
+impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Debug for Memoizer<'a, K, V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let memo_str = self.memo_predicate.as_ref().map(|_| "*present*").unwrap_or("*not present*");
+        write!(f, "Memoizer {{ cache: {:?}, user_function: *unprintable*, memo_predicate: {} }}",
+               self.cache, memo_str)
+    }
 }
 
 impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
