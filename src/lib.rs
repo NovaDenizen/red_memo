@@ -10,14 +10,14 @@ use std::rc::Rc;
 // TODO: how can I remove the box on the iterator types?
 
 
-#[derive(Eq, Ord, PartialOrd, PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, Ord, PartialOrd, PartialEq, Debug, Copy, Clone)]
 enum MemoVal<V> {
     InProgress,
-    Value(V),
+    Finished(V),
 }
 
 
-trait MemoStruct<'a, K: 'a, V: 'a + Clone>
+trait MemoStruct<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug>
 {
     fn insert(&mut self, k: K, v: V) -> Result<(), V>;
     fn get(&self, k: &K) -> Option<V>;
@@ -26,7 +26,7 @@ trait MemoStruct<'a, K: 'a, V: 'a + Clone>
     // TODO: Add iter() and into_iter() implementations somehow.
 }
 
-impl<'a, K: 'a, V: 'a + Clone> MemoStruct<'a, K, V> for HashMap<K,V>
+impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> MemoStruct<'a, K, V> for HashMap<K,V>
 where
     K: Hash + Eq,
 {
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<'a, K: 'a, V: 'a + Clone> MemoStruct<'a,K,V> for BTreeMap<K,V>
+impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> MemoStruct<'a,K,V> for BTreeMap<K,V>
 where
     K: Ord,
 {
@@ -78,13 +78,13 @@ where
     }
 }
 
-pub struct Memoizer<'a, K: 'a, V: 'a + Clone> {
+pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
     cache: Box<dyn 'a + MemoStruct<'a,K,MemoVal<V>>>,
     user_function: Rc<dyn Fn(&mut Memoizer<K, V>, &K) -> V>,
-    small_predicate: Option<Rc<dyn Fn(&K) -> bool>>,
+    memo_predicate: Option<Box<dyn Fn(&K) -> bool>>,
 }
 
-impl<'a, K: 'a, V: 'a + Clone> Memoizer<'a, K, V> 
+impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> 
 {
     pub fn new_hash<F>(user: F) -> Self 
     where
@@ -93,8 +93,8 @@ impl<'a, K: 'a, V: 'a + Clone> Memoizer<'a, K, V>
     {
         let cache = Box::new(HashMap::new());
         let user_function = Rc::new(user);
-        let small_predicate = None;
-        Memoizer { cache, user_function, small_predicate }
+        let memo_predicate = None;
+        Memoizer { cache, user_function, memo_predicate }
     }
     pub fn new_ord<F>(user: F) -> Self 
     where
@@ -103,16 +103,36 @@ impl<'a, K: 'a, V: 'a + Clone> Memoizer<'a, K, V>
     {
         let cache = Box::new(BTreeMap::new());
         let user_function = Rc::new(user);
-        let small_predicate = None;
-        Memoizer { cache, user_function, small_predicate }
+        let memo_predicate = None;
+        Memoizer { cache, user_function, memo_predicate }
     }
-    pub fn set_small_predicate<F>(&mut self, small: F) 
+    pub fn set_memo_predicate<F>(&mut self, memo: F) 
     where
         F: 'static + Fn(&K) -> bool,
     {
-        self.small_predicate = Some(Rc::new(small));
+        self.memo_predicate = Some(Box::new(memo));
+    }
+    pub fn lookup(&mut self, k: &K) -> V {
+        let cachev = self.cache.get(k).unwrap_or_else(|| {
+            let save = self.memo_predicate.as_ref().map(|p| p(k)).unwrap_or(false);
+            if save {
+                self.cache.insert(k.clone(), MemoVal::InProgress)
+                    .unwrap_or_else(|_| panic!("Did not expect to see a memo cacne entry for key {:?}", k));
+            }
+            let user = Rc::clone(&self.user_function);
+            let v = (*user)(self, k);
+            if save {
+                self.cache.get_mut(k).map(|vr| *vr = MemoVal::Finished(v.clone()));
+            }
+            MemoVal::Finished(v)
+        });
+        match cachev {
+            MemoVal::InProgress => panic!("Memoizer: circular dependency on key {:?}", k),
+            MemoVal::Finished(v) => v
+        }
     }
 }
+
 
 
 
