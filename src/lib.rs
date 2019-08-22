@@ -1,3 +1,8 @@
+//! Memoizer enables easy memoization of recursive user functions, based on keys that are hash or
+//! Ord.
+//!
+
+#![deny(missing_docs)]
 // TODO: Remove this
 #![allow(dead_code)]
 
@@ -72,6 +77,7 @@ where
     }
 }
 
+/// Memoization cache for a recursive user function
 pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
     cache: Box<dyn 'a + MemoStruct<'a, K, MemoVal<V>>>,
     user_function: Rc<dyn Fn(&mut Memoizer<K, V>, &K) -> V>,
@@ -79,6 +85,7 @@ pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
 }
 
 impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
+    /// Creates a Memoizer based on HashMap.
     pub fn new_hash<F>(user: F) -> Self
     where
         K: Hash + Eq,
@@ -93,6 +100,7 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
             memo_predicate,
         }
     }
+    /// Creates a Memoizer based on a BTreeMap.
     pub fn new_ord<F>(user: F) -> Self
     where
         K: Ord,
@@ -107,12 +115,20 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
             memo_predicate,
         }
     }
+    /// Sets a memoization predicate for the Memoizer.
+    ///
+    /// By default, a key-value pair will be stored in the memoization cache for every distinct key
+    /// passed to lookup.  This predicate allows the user to control which keys will be stored.
+    /// This capability can be useful if there are a large number of cases that are simple enough
+    /// that storing would be wasteful, or otherwise if the tradeoff between computation time and
+    /// cache size calls for it.
     pub fn set_memo_predicate<F>(&mut self, memo: F)
     where
         F: 'static + Fn(&K) -> bool,
     {
         self.memo_predicate = Some(Box::new(memo));
     }
+    /// Looks up a key in the cache, calculating a value if necessary.
     pub fn lookup(&mut self, k: &K) -> V {
         let cachev = self.cache.get(k).unwrap_or_else(|| {
             let save = self.memo_predicate.as_ref().map(|p| p(k)).unwrap_or(false);
