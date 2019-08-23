@@ -121,8 +121,8 @@ where
 /// Memoization cache for a recursive user function
 pub struct Memoizer<'a, K: 'a, V: 'a + Clone + Debug> {
     cache: Box<dyn 'a + MemoStruct<'a, K, MemoVal<V>>>,
-    user_function: Rc<dyn Fn(&mut Memoizer<K, V>, &K) -> V>,
-    memo_predicate: Option<Box<dyn Fn(&K) -> bool>>,
+    user_function: Rc<dyn 'a + Fn(&mut Memoizer<K, V>, &K) -> V>,
+    memo_predicate: Option<Box<dyn 'a + Fn(&K) -> bool>>,
 }
 
 impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Debug for Memoizer<'a, K, V> {
@@ -145,7 +145,7 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
     pub fn new_hash<F>(user: F) -> Self
     where
         K: Hash + Eq,
-        F: 'static + Fn(&mut Memoizer<K, V>, &K) -> V,
+        F: 'a + Fn(&mut Memoizer<K, V>, &K) -> V,
     {
         let cache = Box::new(HashMap::new());
         let user_function = Rc::new(user);
@@ -160,7 +160,7 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
     pub fn new_ord<F>(user: F) -> Self
     where
         K: Ord,
-        F: 'static + Fn(&mut Memoizer<K, V>, &K) -> V,
+        F: 'a + Fn(&mut Memoizer<K, V>, &K) -> V,
     {
         let cache = Box::new(BTreeMap::new());
         let user_function = Rc::new(user);
@@ -187,7 +187,7 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
     #[allow(dead_code)]
     fn set_memo_predicate<P>(&mut self, predicate: P)
     where
-        P: 'static + Fn(&K) -> bool,
+        P: 'a + Fn(&K) -> bool,
     {
         self.memo_predicate = Some(Box::new(predicate));
     }
