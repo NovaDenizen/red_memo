@@ -1,4 +1,4 @@
-//! red_memo is a simple, safe, pure rust library for memoization and dynamic programming.
+//! red_memo is a simple, safe, single-threaded, pure rust library for memoization and dynamic programming.
 //!
 //! `Memoizer<K,V>` is the main cache type.  It can be initialized with an underlying
 //! `std::collections::HashMap` with `new_hash()`, or with an underlying
