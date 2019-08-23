@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Ken Bateman <novadenizen@gmail.com>"]
 edition = "2018"
 description = "A simple, safe, single-threaded, pure rust library for memoization and dynamic programming"
-license = "CC-PDDC"
+license = "LGPL"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
