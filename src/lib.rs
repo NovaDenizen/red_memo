@@ -7,10 +7,11 @@
 //!
 //! fn fibonacci(mem: &mut Memoizer<usize, usize>, k: &usize) -> usize
 //! {
-//!     if *k < 2 {
-//!         *k
+//!     let k = *k;
+//!     if k < 2 {
+//!         k
 //!     } else {
-//!         mem.lookup(&(*k-1)) + mem.lookup(&(*k-2))
+//!         mem.lookup(&(k - 1)) + mem.lookup(&(k - 2))
 //!     }
 //! }
 //!
@@ -18,6 +19,7 @@
 //! {
 //!     let mut fib_cache = Memoizer::new_ord(fibonacci);
 //!     println!("fibonacci(20) = {}", fib_cache.lookup(&20));
+//!     assert_eq!(fib_cache.lookup(&40), 102334155);
 //! }
 //!
 //! ```
@@ -152,21 +154,25 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
     }
     /// Sets a memoization predicate for the Memoizer.
     ///
-    /// By default, a key-value pair will be stored in the memoization cache for every distinct key
-    /// passed to lookup.  This predicate allows the user to control which keys will be stored.
-    /// This capability can be useful if there are a large number of cases that are simple enough
-    /// that storing would be wasteful, or otherwise if the tradeoff between computation time and
-    /// cache size calls for it.
-    pub fn set_memo_predicate<F>(&mut self, memo: F)
+    /// When a `Memoizer` has a memoization predicate set, keys not matched by the predicate will
+    /// be calculated as usual but not stored in the cache once calculated.
+    ///
+    /// When a memoization predicate is not set, it is as if a predicate that always returns `true`
+    /// is used.  That is, all key-value pairs computed will be stored in the cache.
+    ///
+    /// If there is a class of keys for which directly computing their value takes the same effort
+    /// as lookinng up a key and cloning a value, it makes sense to use a predicate to keep those
+    /// keys out of the cache.
+    pub fn set_memo_predicate<P>(&mut self, predicate: P)
     where
-        F: 'static + Fn(&K) -> bool,
+        P: 'static + Fn(&K) -> bool,
     {
-        self.memo_predicate = Some(Box::new(memo));
+        self.memo_predicate = Some(Box::new(predicate));
     }
     /// Looks up a key in the cache, calculating a value if necessary.
     pub fn lookup(&mut self, k: &K) -> V {
         let cachev = self.cache.get(k).unwrap_or_else(|| {
-            let save = self.memo_predicate.as_ref().map(|p| p(k)).unwrap_or(false);
+            let save = self.memo_predicate.as_ref().map(|p| p(k)).unwrap_or(true);
             if save {
                 self.cache
                     .insert(k.clone(), MemoVal::InProgress)
@@ -188,12 +194,39 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
             MemoVal::Finished(v) => v,
         }
     }
+
+    /// Look up a key in the cache, but do not calculate it if it is not present.
+    pub fn lookup_immut(&self, k: &K) -> Option<V> {
+        self.cache.get(k).and_then(|mv| match mv {
+            MemoVal::InProgress => None,
+            MemoVal::Finished(v) => Some(v),
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    fn fibonacci(mem: &mut Memoizer<usize, usize>, k: &usize) -> usize
+    {
+        let k = *k;
+        if k < 2 {
+            k
+        } else {
+            mem.lookup(&(k - 1)) + mem.lookup(&(k - 2))
+        }
+    }
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn fibs() {
+        let mut fib_cache = Memoizer::new_ord(fibonacci);
+        assert_eq!(fib_cache.lookup(&0), 0);
+        assert_eq!(fib_cache.lookup(&1), 1);
+        assert_eq!(fib_cache.lookup(&2), 1);
+        assert_eq!(fib_cache.lookup(&3), 2);
+        assert_eq!(fib_cache.lookup(&20), 6765);
+        assert_eq!(fib_cache.lookup(&30), 832040);
+        assert_eq!(fib_cache.lookup(&40), 102334155);
     }
 }
