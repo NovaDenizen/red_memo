@@ -219,8 +219,19 @@ mod tests {
     }
 
     #[test]
-    fn fibs() {
+    fn fibs_ord() {
         let mut fib_cache = Memoizer::new_ord(fibonacci);
+        assert_eq!(fib_cache.lookup(&0), 0);
+        assert_eq!(fib_cache.lookup(&1), 1);
+        assert_eq!(fib_cache.lookup(&2), 1);
+        assert_eq!(fib_cache.lookup(&3), 2);
+        assert_eq!(fib_cache.lookup(&20), 6765);
+        assert_eq!(fib_cache.lookup(&30), 832040);
+        assert_eq!(fib_cache.lookup(&40), 102334155);
+    }
+    #[test]
+    fn fibs_hash() {
+        let mut fib_cache = Memoizer::new_hash(fibonacci);
         assert_eq!(fib_cache.lookup(&0), 0);
         assert_eq!(fib_cache.lookup(&1), 1);
         assert_eq!(fib_cache.lookup(&2), 1);
