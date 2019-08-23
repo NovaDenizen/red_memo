@@ -1,9 +1,27 @@
-//! Memoizer enables easy memoization of recursive user functions, based on either hashable or
-//! ordered keys.
+//! red_memo is a simple, safe, pure rust library for memoization and dynamic programming.
+//!
+//! `Memoizer<K,V>` is the main cache type.  It can be initialized with an underlying
+//! `std::collections::HashMap` with `new_hash()`, or with an underlying
+//! `std::collections::BTreeMap` with `new_ord()`.
+//!
+//! Keys can be either ordered or hashed. The outer api is identical for both cases,
+//!
+//! The Debug trait is required for keys and values in order to make error messages intelligible.
+//! 
+//! The Clone trait is required tor keys in order to fulfill the expectations a user has for a
+//! memoizing cache.
+//!
+//! The Clone trait is required for values.  If Memoizer were to return immutable references to
+//! cached values, as is typically done, then the cache would have to be immutably borrowd while
+//! new values were being calculated from old ones, and the cache would not be updated with the new
+//! values.
+//!
+//! If a value type cannot be made to implement Clone, or if it would be excessively costly to make
+//! copies, consider using `std::rc::Rc`.
 //!
 //! ```
 //!
-//! use newmemo::*;
+//! use red_memo::Memoizer;
 //!
 //! fn fibonacci(mem: &mut Memoizer<usize, usize>, k: &usize) -> usize
 //! {
@@ -18,6 +36,8 @@
 //! fn main()
 //! {
 //!     let mut fib_cache = Memoizer::new_ord(fibonacci);
+//!     // since usize implements Hash+Eq as well, this could instead be
+//!     // let mut fib_cache = Memoizer::new_hash(fibonacci);
 //!     println!("fibonacci(20) = {}", fib_cache.lookup(&20));
 //!     assert_eq!(fib_cache.lookup(&40), 102334155);
 //! }
@@ -45,6 +65,7 @@ trait MemoStruct<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug>: Debug {
     // TODO: remove get_mut?
     fn get_mut(&mut self, k: &K) -> Option<&mut V>;
     // TODO: Add iter() and into_iter() implementations somehow.
+    // TODO: Make it possible to manually initialize the cache.  public `store()`?
 }
 
 impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> MemoStruct<'a, K, V> for HashMap<K, V>
@@ -168,6 +189,16 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
         self.memo_predicate = Some(Box::new(predicate));
     }
     /// Looks up a key in the cache, calculating a value if necessary.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if a circular dependency is detected.
+    ///
+    /// Before the Memoizer starts calculating a value for a particular key, it places an
+    /// "in-progress" marker in the cache for that key.  After that key's value is caculated, the
+    /// "in-progress" marker is replaced with the finished value.  If an in-progress key is passed
+    /// to `lookup()`, this indicates a circular dependency.
+    ///
     pub fn lookup(&mut self, k: &K) -> V {
         let cachev = self.cache.get(k).unwrap_or_else(|| {
             let save = self.memo_predicate.as_ref().map(|p| p(k)).unwrap_or(true);
