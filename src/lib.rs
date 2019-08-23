@@ -1,5 +1,27 @@
-//! Memoizer enables easy memoization of recursive user functions, based on keys that are hash or
-//! Ord.
+//! Memoizer enables easy memoization of recursive user functions, based on either hashable or
+//! ordered keys.
+//!
+//! ```
+//!
+//! use newmemo::*;
+//!
+//! fn fibonacci(mem: &mut Memoizer<usize, usize>, k: &usize) -> usize
+//! {
+//!     if *k < 2 {
+//!         *k
+//!     } else {
+//!         mem.lookup(&(*k-1)) + mem.lookup(&(*k-2))
+//!     }
+//! }
+//!
+//! fn main()
+//! {
+//!     let mut fib_cache = Memoizer::new_ord(fibonacci);
+//!     println!("fibonacci(20) = {}", fib_cache.lookup(&20));
+//! }
+//!
+//! ```
+//!
 //!
 
 #![deny(missing_docs)]
@@ -10,8 +32,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::rc::Rc;
-
-// TODO: how can I remove the box on the iterator types?
 
 #[derive(Eq, Ord, PartialOrd, PartialEq, Debug, Copy, Clone)]
 enum MemoVal<V> {
