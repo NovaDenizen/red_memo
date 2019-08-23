@@ -27,8 +27,6 @@
 //!
 
 #![deny(missing_docs)]
-// TODO: Remove this
-#![allow(dead_code)]
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
