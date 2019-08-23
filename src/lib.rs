@@ -182,7 +182,10 @@ impl<'a, K: 'a + Clone + Debug, V: 'a + Clone + Debug> Memoizer<'a, K, V> {
     /// If there is a class of keys for which directly computing their value takes the same effort
     /// as lookinng up a key and cloning a value, it makes sense to use a predicate to keep those
     /// keys out of the cache.
-    pub fn set_memo_predicate<P>(&mut self, predicate: P)
+    ///
+    /// TODO: add this to public api along with tests, or get rid of it.
+    #[allow(dead_code)]
+    fn set_memo_predicate<P>(&mut self, predicate: P)
     where
         P: 'static + Fn(&K) -> bool,
     {
